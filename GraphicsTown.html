@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- Graphics town framework code by Mike Gleicher
+  -- written October, 2015
+  -->
+<head>
+    <meta charset="UTF-8">
+    <title>GraphicsTown!</title>
+</head>
+
+<body>
+<!-- load this stuff first -->
+<script src="Libraries/twgl-full.js"></script>
+<script src="Libraries/panel.js"></script>
+<script src="Libraries/arcball.js"></script>
+<script src="grobject.js"></script>
+
+<!-- This is where we load the objects for the world -->
+<script src="ExampleObjects/simplest.js"></script>
+<script src="ExampleObjects/texturedplane.js"></script>
+<script src="ExampleObjects/ufo.js"></script>
+<script src="ExampleObjects/tree.js"></script>
+<script src="ExampleObjects/mountain.js"></script>
+<script src="ExampleObjects/lake.js"></script>
+<script src="ExampleObjects/skyfront.js"></script>
+<script src="ExampleObjects/skyback.js"></script>
+<script src="ExampleObjects/skyleft.js"></script>
+<script src="ExampleObjects/skyright.js"></script>
+<script src="ExampleObjects/skytop.js"></script>
+<script src="ExampleObjects/skybottom.js"></script>
+
+<!-- I am adding the helicopter -->
+<script src="Helicopter/helicopter.js"></script>
+
+<!-- This gets loaded LAST (actually, it probably doesn't have to) -->
+<script src="graphicstown.js"></script>
+</body>
+
+<!-- all of the shaders get stuck here in the HTML because
+  -- that's the only way I know to load them without either
+  -- sticking them in JavaScript strings, or using a web server
+  -->
+  
+ <script id="ufo-vs" type="notjs">
+    precision highp float;
+
+    attribute vec3 vpos;
+    attribute vec3 vnormal;
+
+    uniform mat3 normalMatrix;
+    uniform mat4 view;
+    uniform mat4 proj;
+    uniform mat4 model;
+    uniform vec3 lightdir;
+    uniform vec3 ufocolor;
+	
+    varying vec3 outLightDir;
+	varying vec3 outColor;
+    varying vec3 fNormal;
+    varying vec3 fPos;
+
+    void main(void) {
+        gl_Position = proj * view * model * vec4(vpos, 1.0);
+        fNormal = normalize(normalMatrix * vnormal);
+        vec4 normal = normalize(model * vec4(vnormal, 0.0));
+        fPos =(view * model * vec4(vpos.xyz,1.0)).xyz;       
+        float diffuse = 0.5 + 0.5 * dot(normal, vec4(lightdir, 0.0));
+        outLightDir = lightdir;
+        outColor = ufocolor * diffuse;
+    }
+</script>
+<script id="ufo-fs" type="notjs">
+    precision highp float;
+	
+    varying vec3 outColor;
+    varying vec3 outLightDir;
+    varying vec3 fPos;
+    varying vec3 fNormal;
+	
+    const float specularCoeff  = 2.0;
+    const float specularExp    = 7.0;
+	
+    const vec3  lightColor     = vec3(1.0, 1.0, 1.0);
+
+    void main(void) {
+        vec3 l = normalize(outLightDir);
+        vec3 n = normalize(fNormal);
+        vec3 e = normalize(-fPos);
+        vec3 h = normalize(e+l);
+        vec3 specularColor = specularCoeff * pow(max(0.0,dot(n,h)), specularExp) * lightColor;
+        gl_FragColor = vec4(outColor + specularColor, 1.0);
+    }
+</script>
+
+<script id="tree-vs" type="notjs">
+    precision highp float;
+
+    attribute vec3 vpos;
+    attribute vec3 vnormal;
+    attribute vec3 vcolor;
+
+    uniform mat4 view;
+    uniform mat4 proj;
+    uniform mat4 model;
+    uniform vec3 lightdir;
+    uniform vec3 treecolor;
+
+	varying vec3 outColor;
+
+    void main(void) {
+        gl_Position = proj * view * model * vec4(vpos, 1.0);
+        vec4 normal = normalize(model * vec4(vnormal, 0.0));
+        float diffuse = 0.5 + 0.5 * abs(dot(normal, vec4(lightdir, 0.0)));
+        outColor = vcolor * diffuse;
+    }
+</script>
+<script id="tree-fs" type="notjs">
+    precision highp float;
+	
+    varying vec3 outColor;
+	
+    void main(void) {
+        gl_FragColor = vec4(outColor, 1.0);
+    }
+</script>
+
+<script id="mountain-vs" type="notjs">
+    precision highp float;
+
+    attribute vec3 vpos;
+    attribute vec3 vnormal;
+    attribute vec2 vTex;
+
+    uniform mat3 normalMatrix;
+    uniform mat4 view;
+    uniform mat4 proj;
+    uniform mat4 model;
+    uniform vec3 lightdir;
+    uniform vec3 cubecolor;
+	
+	varying vec3 outColor;
+	varying vec3 outLightDir;
+    varying vec3 fNormal;
+    varying vec2 fTexCoord;
+    varying vec3 fPos;
+
+    void main(void) {
+        gl_Position = proj * view * model * vec4(vpos, 1.0);
+        fNormal = normalize(normalMatrix * vnormal);
+        vec4 normal = normalize(model * vec4(vnormal, 0.0));
+        fPos =(view * model * vec4(vpos.xyz, 1.0)).xyz;
+        float diffuse = 0.5 + 0.5 * dot(normal, vec4(lightdir, 0.0));
+        outLightDir = lightdir;
+        outColor = cubecolor * diffuse;
+        fTexCoord = vTex;
+    }
+</script>
+<script id="mountain-fs" type="notjs">
+    precision highp float;
+	
+    varying vec3 outColor;
+    varying vec3 outLightDir;
+    varying vec3 fPos;
+    varying vec3 fNormal;
+	varying vec2 fTexCoord;
+	
+    const float specularCoeff = 2.0;
+    const float specularExp   = 7.0;
+	
+    const vec3  lightColor    = vec3(1.0, 1.0, 1.0);
+	
+    uniform sampler2D texSampler1;
+
+    void main(void) {
+        vec3 l = normalize(outLightDir);
+        vec3 n = normalize(fNormal);
+        vec3 e = normalize(-fPos);
+        vec3 h = normalize(e+l);
+        vec4 texColor = texture2D(texSampler1, fTexCoord);
+        vec3 specularColor = specularCoeff * pow(max(0.0,dot(n,h)), specularExp) * lightColor;
+        gl_FragColor = vec4(texColor) + vec4(outColor + specularColor, 1.0);
+    }
+</script>
+
+</html>
